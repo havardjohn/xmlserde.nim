@@ -1,6 +1,6 @@
 ## Common routines for this project.
 
-import std/[parsexml, strformat, macros]
+import std/[parsexml, strformat, macros, times]
 
 template xmlName*(name: string) {.pragma.}
     ## Annotates a field of an object.
@@ -44,7 +44,7 @@ template xmlNameOf*(field: typed, def: string): string =
         def
 
 type
-    Primitive* = SomeInteger | SomeFloat | string | bool | enum
+    Primitive* = SomeInteger | SomeFloat | string | bool | enum | DateTime | Time
         ## Supported primitive types for all marshalling.
 
 func errorMsgX*(inp: XmlParser, msg: string): string =

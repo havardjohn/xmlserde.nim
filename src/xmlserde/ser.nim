@@ -1,6 +1,6 @@
 ## Serialization implementation.
 
-import std/[macros, xmltree, typetraits, sequtils, strtabs, options]
+import std/[macros, xmltree, typetraits, sequtils, strtabs, options, times]
 import common
 
 func subnodes(node: XmlNode): seq[XmlNode] =
@@ -8,7 +8,10 @@ func subnodes(node: XmlNode): seq[XmlNode] =
     for i in 0..<node.len:
         result[i] = node[i]
 
-func ser*[T: Primitive](inp: T): XmlNode =
+proc ser(inp: Time): XmlNode =
+    newText inp.format("HH:mm:sszzz")
+
+func ser*[T: Primitive and not Time](inp: T): XmlNode =
     newText($inp)
 
 func formatObjectSer(node: XmlNode, name: string): XmlNode =

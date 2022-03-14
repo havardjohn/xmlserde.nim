@@ -1,6 +1,6 @@
 ## Deserialization implementation.
 
-import std/[strutils, macros, strtabs, options, logging, strformat]
+import std/[strutils, macros, strtabs, options, logging, strformat, times]
 import common
 
 # Easier debugging for tests
@@ -30,6 +30,8 @@ func deser(inp: string, outp: var SomeFloat) = outp = inp.parseFloat
 func deser(inp: string, outp: var string) = outp = inp
 func deser(inp: string, outp: var bool) = outp = inp.parseBool
 func deser[T: enum](inp: string, outp: var T) = outp = parseEnum[T](inp)
+proc deser(inp: string, outp: var DateTime) = outp = inp.parse("yyyy-MM-dd'T'HH:mm:sszzz")
+proc deser(inp: string, outp: var Time) = outp = inp.parseTime("HH:mm:sszzz", local())
 
 proc deser*[T: Primitive](inp: var XmlParser, outp: var T) =
     case inp.kind
