@@ -25,10 +25,14 @@
 # `xsd:choice` node describes a list of elements that are mutually exclusive,
 # but the discriminator itself is not present.
 
-import std/[streams, parsexml]
+import std/[streams, parsexml, strutils]
+import results
 import xmlserde/[ser, deser, common]
 
 export ser, deser, xmlName, xmlFlatten, xmlAttr, xmlText
+
+type
+    DeserializeResult[T] = Result[T, string]
 
 proc skipUntilElem(inp: var XmlParser, name: string) =
     ## Skips nodes until a node on the same depth with the given name is found
@@ -38,7 +42,7 @@ proc skipUntilElem(inp: var XmlParser, name: string) =
             return
         inp.next
 
-proc deser*[T](content: Stream, rootName, fileName = ""): T =
+proc deser*[T](content: Stream, rootName, fileName = ""): DeserializeResult[T] =
     ## Simple deserialization of an XML stream into `T`.
     ##
     ## `rootName` can be specified, in which case `rootName` will be the node
@@ -54,15 +58,20 @@ proc deser*[T](content: Stream, rootName, fileName = ""): T =
         if rootName != "":
             x.skipUntilElem(rootName)
             x.next
-        x.deser(result)
+        var ret: T
+        let msgs = x.deser(ret)
+        if msgs.len > 0:
+            result = err(msgs.join("\n"))
+        else:
+            result = ok(ret)
     finally:
         x.close
 
-proc deserString*[T](content: string, rootName, fileName = ""): T =
+proc deserString*[T](content: string, rootName, fileName = ""): DeserializeResult[T] =
     ## Convenience wrapper around `deser`.
     # NOTE: The name cannot be `deser` as it conflicts with the `deser` proc
     # for primitive types.
     deser[T](newStringStream(content), rootName, fileName)
 
-proc deserFile*[T](fileName: string, rootName = ""): T =
+proc deserFile*[T](fileName: string, rootName = ""): DeserializeResult[T] =
     deser[T](openFileStream(fileName), rootName, fileName)

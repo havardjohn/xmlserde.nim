@@ -1,5 +1,6 @@
 import std/[xmltree, parsexml, unittest, options, streams]
 import xmlserde
+import results
 
 suite "Deserialization":
     test "Basic object deserialization":
@@ -7,7 +8,7 @@ suite "Deserialization":
             TestObj = object
                 a: int
         let xml = $(<>a(newText"3"))
-        check xml.deserString[:TestObj] == TestObj(a: 3)
+        check xml.deserString[:TestObj].get == TestObj(a: 3)
 
     # NOTE: `xmlAttr` is ignored on deserialization. See serializing tests for
     # usage.
@@ -19,7 +20,7 @@ suite "Deserialization":
             TestObj = object
                 x: ChildObj
         let xml = $(<>x(a = "3", newText"Hello"))
-        check xml.deserString[:TestObj] == TestObj(x: ChildObj(a: 3, text: "Hello"))
+        check xml.deserString[:TestObj].get == TestObj(x: ChildObj(a: 3, text: "Hello"))
 
     test "Many fields":
         type
@@ -30,7 +31,7 @@ suite "Deserialization":
             <>x(newText"1"),
             <>y(newText"2"),
             <>z(newText"World")))
-        check xml.deserString[:TestObj]("root") == TestObj(x: 1, y: 2, z: "World")
+        check xml.deserString[:TestObj]("root").get == TestObj(x: 1, y: 2, z: "World")
 
     test "Flatten deserialization":
         type
@@ -43,14 +44,14 @@ suite "Deserialization":
             <>x(newText"1"),
             <>y(newText"2"),
             <>z(newText"4")))
-        check xml.deserString[:TestObj]("root") == TestObj(x: InnerObj(x: 1, y: 2), z: 4)
+        check xml.deserString[:TestObj]("root").get == TestObj(x: InnerObj(x: 1, y: 2), z: 4)
 
     test "Custom XML name":
         type
             TestObj = object
                 x {.xmlName: "xyz".}: int
         let xml = $(<>xyz(newText"4"))
-        check xml.deserString[:TestObj] == TestObj(x: 4)
+        check xml.deserString[:TestObj].get == TestObj(x: 4)
 
     test "Enum":
         type
@@ -58,19 +59,19 @@ suite "Deserialization":
                 aeOne = "one"
                 aeTwo = "twoo"
         let xml = $(<>x(newText"twoo"))
-        check xml.deserString[:TestEnum]("x") == aeTwo
+        check xml.deserString[:TestEnum]("x").get == aeTwo
 
     test "Optional some":
         type TestObj = object
             x: Option[int]
         let xml = $(<>x(newText"3"))
-        check xml.deserString[:TestObj] == TestObj(x: some(3))
+        check xml.deserString[:TestObj].get == TestObj(x: some(3))
 
     test "Optional none":
         type TestObj = object
             x: Option[int]
         let xml = $("".newXmlTree([]))
-        check xml.deserString[:TestObj] == TestObj(x: none(int))
+        check xml.deserString[:TestObj].get == TestObj(x: none(int))
 
     test "Sequential":
         type TestObj = object
@@ -79,7 +80,7 @@ suite "Deserialization":
             <>x(newText"2"),
             <>x(newText"3"),
             <>x(newText"1")))
-        check xml.deserString[:TestObj]("root") == TestObj(x: @[2, 3, 1])
+        check xml.deserString[:TestObj]("root").get == TestObj(x: @[2, 3, 1])
 
     test "Mixed sequential":
         type TestObj = object
@@ -89,7 +90,14 @@ suite "Deserialization":
             <>x(newText"2"),
             <>y(newText"3"),
             <>x(newText"1")))
-        check xml.deserString[:TestObj]("root") == TestObj(x: @[2, 1], y: 3)
+        check xml.deserString[:TestObj]("root").get == TestObj(x: @[2, 1], y: 3)
+
+    test "Serialize bad primitive":
+        type TestObj = object
+            x: int16
+        let xml = $(<>root(
+            <>x(newText"600000")))
+        check xml.deserString[:TestObj]("root").isErr
 
 # XXX: `seq[Option[T]]` may not be possible. It is however not a type that ever
 # appears from structures from XSD.
