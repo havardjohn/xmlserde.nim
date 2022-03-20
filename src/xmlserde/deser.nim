@@ -6,9 +6,18 @@ import common
 # Easier debugging for tests
 when defined xmlSerdeParseXmlDebug:
     import std/parsexml except next
-    proc next(inp: var XmlParser) =
+    func valOf*(inp: var XmlParser): string =
+        case inp.kind
+        of xmlCharData: inp.charData
+        of xmlAttribute: &"{inp.attrKey} = \"{inp.attrValue}\""
+        else: ""
+    func kindOf*(inp: var XmlParser): XmlEventKind =
+        inp.kind
+    template next(inp: var XmlParser) =
+        bind valOf
+        bind kindOf
         parsexml.next(inp)
-        echo &"next: {$inp.kind}"
+        echo &"next at {instantiationInfo(-2, true).line}: {$inp.kindOf} with val \"{valOf(inp)}\""
 else:
     import std/parsexml
 
