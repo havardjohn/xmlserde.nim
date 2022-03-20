@@ -107,6 +107,17 @@ suite "Deserialization":
             <>x(newText"600000")))
         check xml.deserString[:TestObj]("root").isErr
 
+    # The `<z>(<y>...)` tests that `TestObj.y` is not overwritten with `z.y`'s
+    # value; tests that nested ignoring is properly handled.
+    test "XML not in schema is ignored":
+        type TestObj = object
+            y: string
+        let xml = $(<>root(
+            <>x(a = "someAttr", newText"ValueX"),
+            <>y(newText"Hello"),
+            <>z(<>y(newText"123"))))
+        check xml.deserString[:TestObj]("root").get == TestObj(y: "Hello")
+
 # XXX: `seq[Option[T]]` may not be possible. It is however not a type that ever
 # appears from structures from XSD.
 

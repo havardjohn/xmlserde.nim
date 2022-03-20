@@ -103,8 +103,22 @@ proc deser*[T](inp: var XmlParser, outp: var Option[T]): seq[string] =
     outp = some(default T)
     inp.deser(outp.get)
 
-proc deserField[T: object](inp: var XmlParser, xmlName: string, outp: var T): seq[string] =
-    template deserFieldInner[T: object](outp: var T) =
+proc skipNode(inp: var XmlParser) =
+    var lvl = 1
+    while true:
+        inp.next
+        case inp.kind
+        of {xmlElementStart, xmlElementOpen}:
+            inc lvl
+        of xmlElementEnd:
+            dec lvl
+            if lvl == 0:
+                return
+        else: discard
+
+proc deserField[T: object](inp: var XmlParser, xmlName: string, outp: var T,
+                           isAttr: static bool): seq[string] =
+    template deserFieldInner[T](outp: var T) {.dirty.} =
         for key, val in fieldPairs outp:
             when hasCustomPragma(val, xmlFlatten):
                 deserFieldInner(val)
@@ -112,12 +126,19 @@ proc deserField[T: object](inp: var XmlParser, xmlName: string, outp: var T): se
                 if xmlName =?= xmlNameOf(val, key):
                     return inp.deser(val)
     deserFieldInner(outp)
+    # Handle field not existing in object fields:
+    when isAttr:
+        inp.expectKind xmlAttribute
+        inp.next # Skips ignored xmlAttribute
+    else:
+        inp.expectKind {xmlCharData, xmlAttribute, xmlElementStart, xmlElementOpen}
+        inp.skipNode
 
 proc deserAttrs[T: object](inp: var XmlParser, outp: var T): seq[string] =
     if inp.kind != xmlAttribute:
         return
     while true:
-        result &= inp.deserField(inp.attrKey, outp)
+        result &= inp.deserField(inp.attrKey, outp, true)
         inp.next
         if inp.kind != xmlAttribute: break
     inp.expectKind xmlElementClose
@@ -137,6 +158,6 @@ proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[st
         inp.expectKind {xmlElementStart, xmlElementOpen}
         let elemName = inp.elemName
         inp.next
-        result &= inp.deserField(elemName, outp)
+        result &= inp.deserField(elemName, outp, false)
         inp.expectKind xmlElementEnd
         inp.next
