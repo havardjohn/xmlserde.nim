@@ -22,6 +22,27 @@ suite "Deserialization":
         let xml = $(<>x(a = "3", newText"Hello"))
         check xml.deserString[:TestObj].get == TestObj(x: ChildObj(a: 3, text: "Hello"))
 
+    test "Only attribute":
+        type
+            ChildObj = object
+                a {.xmlAttr.}: string
+            TestObj = object
+                x: ChildObj
+        # xmlElementOpen, xmlAttribute, xmlElementClose, xmlElementEnd
+        let xml = $(<>x(a = "3"))
+        check xml.deserString[:TestObj].get == TestObj(x: ChildObj(a: "3"))
+
+    test "2 attributes":
+        type
+            ChildObj = object
+                a {.xmlAttr.}: string
+                b {.xmlAttr.}: string
+            TestObj = object
+                x: ChildObj
+        # xmlElementOpen, xmlAttribute, xmlElementClose, xmlElementEnd
+        let xml = $(<>x(a = "3", b = "4"))
+        check xml.deserString[:TestObj].get == TestObj(x: ChildObj(a: "3", b: "4"))
+
     test "Many fields":
         type
             TestObj = object
@@ -100,7 +121,7 @@ suite "Deserialization":
             <>x(newText"1")))
         check xml.deserString[:TestObj]("root").get == TestObj(x: @[2, 1], y: 3)
 
-    test "Serialize bad primitive":
+    test "Unparsable primitive generates error":
         type TestObj = object
             x: int16
         let xml = $(<>root(
