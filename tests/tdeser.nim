@@ -1,4 +1,4 @@
-import std/[xmltree, parsexml, unittest, options, streams]
+import std/[xmltree, parsexml, unittest, options, streams, times]
 import xmlserde
 import results
 
@@ -60,6 +60,14 @@ suite "Deserialization":
                 aeTwo = "twoo"
         let xml = $(<>x(newText"twoo"))
         check xml.deserString[:TestEnum]("x").get == aeTwo
+
+    # NOTE: Cannot test non-UTC datetimes, because std/times only supports UTC
+    # or local timezones.
+    test "UTC datetime":
+        type TestObj = object
+            x: DateTime
+        let xml = $(<>x(newText"2020-01-02T11:00:00Z"))
+        check xml.deserString[:TestObj].get == TestObj(x: dateTime(2020, mJan, 2, 11, zone = utc()))
 
     test "Optional some":
         type TestObj = object

@@ -44,7 +44,7 @@ template xmlNameOf*(field: typed, def: string): string =
         def
 
 type
-    Primitive* = SomeInteger | SomeFloat | string | bool | enum | DateTime | Time
+    Primitive* = SomeInteger | SomeFloat | string | bool | enum | DateTime
         ## Supported primitive types for all marshalling.
 
 func errorMsgX*(inp: XmlParser, msg: string): string =

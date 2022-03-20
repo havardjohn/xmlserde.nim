@@ -1,4 +1,4 @@
-import std/[xmltree, unittest, options]
+import std/[xmltree, unittest, options, times]
 import xmlserde
 
 func `==`(x, y: XmlNode): bool = $x == $y
@@ -97,6 +97,14 @@ suite "serialization":
             <>x(newText"4"),
             <>x(newText"2"),
             <>y(newText"Heyo")])
+
+    test "Datetime":
+        type TestObj = object
+            x: DateTime
+        let dt = dateTime(2020, mJan, 21, 11, 21, zone = utc())
+        let obj = TestObj(x: dt)
+        check obj.ser == "".newXmlTree([
+            <>x(newText"2020-01-21T11:21:00Z")])
 
     # TODO
     #test "Unions":

@@ -33,16 +33,9 @@ func parseEnum[T: enum](s: string, outp: var T): bool =
     except ValueError:
         false
 
-proc parseTime(s: string, outp: var Time): bool =
-    try:
-        outp = s.parseTime("HH:mm:sszzz", local())
-        true
-    except TimeParseError:
-        false
-
 proc parseDateTime(s: string, outp: var DateTime): bool =
     try:
-        outp = s.parse("yyyy-MM-dd'T'HH:mm:sszzz")
+        outp = s.parse("yyyy-MM-dd'T'HH:mm:sszzz") # ISO8601
         true
     except TimeParseError:
         false
@@ -74,7 +67,6 @@ func deser(inp: string, outp: var string): bool = outp = inp; true
 func deser(inp: string, outp: var bool): bool = inp.parseBool(outp)
 func deser[T: enum](inp: string, outp: var T): bool = parseEnum[T](inp, outp)
 proc deser(inp: string, outp: var DateTime): bool = inp.parseDateTime(outp)
-proc deser(inp: string, outp: var Time): bool = inp.parseTime(outp)
 
 proc deser*[T: Primitive](inp: var XmlParser, outp: var T): seq[string] =
     let str =
@@ -86,7 +78,7 @@ proc deser*[T: Primitive](inp: var XmlParser, outp: var T): seq[string] =
         result = @[inp.errorMsgX("Failed to parse primitive")]
     inp.next
 
-proc deser*[T: object](inp: var XmlParser, outp: var T): seq[string]
+proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string]
 
 proc deser*[T](inp: var XmlParser, outp: var seq[T]): seq[string] =
     ## Deserialize by appending deserialized type to end of sequence.
@@ -119,7 +111,7 @@ proc deserText[T: object](inp: var XmlParser, outp: var T): seq[string] =
         when hasCustomPragma(val, xmlText):
             return inp.deser(val)
 
-proc deser*[T: object](inp: var XmlParser, outp: var T): seq[string] =
+proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string] =
     result = inp.deserAttrs(outp)
     if inp.kind == xmlCharData:
         result &= inp.deserText(outp)

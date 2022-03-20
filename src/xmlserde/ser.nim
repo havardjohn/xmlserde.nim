@@ -8,20 +8,19 @@ func subnodes(node: XmlNode): seq[XmlNode] =
     for i in 0..<node.len:
         result[i] = node[i]
 
-proc ser(inp: Time): XmlNode =
-    newText inp.format("HH:mm:sszzz")
-
-func ser*[T: Primitive and not Time](inp: T): XmlNode =
+func ser*[T: Primitive](inp: T): XmlNode =
     newText($inp)
 
-func formatObjectSer(node: XmlNode, name: string): XmlNode =
+# NOTE: Is not a `func` because of DateTime
+proc formatObjectSer(node: XmlNode, name: string): XmlNode =
     if node.kind == xnElement:
         node.tag = name
         node
     else:
         name.newXmlTree([node])
 
-func ser*[T: object | tuple](inp: T): XmlNode =
+# NOTE: Is not a `func` because of DateTime
+proc ser*[T: object | tuple and not DateTime](inp: T): XmlNode =
     var
         attrs = newStringTable()
         subs = newSeq[XmlNode]()
