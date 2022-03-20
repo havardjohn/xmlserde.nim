@@ -1,6 +1,6 @@
 ## Deserialization implementation.
 
-import std/[strutils, macros, strtabs, options, logging, strformat, times, parseutils]
+import std/[strutils, macros, strtabs, options, strformat, times, parseutils]
 import common
 
 # Easier debugging for tests
