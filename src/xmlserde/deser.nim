@@ -80,12 +80,17 @@ proc deser(inp: string, outp: var DateTime): bool = inp.parseDateTime(outp)
 proc deser*[T: Primitive](inp: var XmlParser, outp: var T): seq[string] =
     let str =
         case inp.kind
-        of xmlCharData: inp.charData
+        of xmlCharData:
+            var str: string
+            while true:
+                str &= inp.charData
+                inp.next
+                if inp.kind != xmlCharData: break
+            str
         of xmlAttribute: inp.attrValue
         else: inp.expectKind {xmlCharData, xmlAttribute}; ""
     if not str.deser(outp):
-        result = @[inp.errorMsgX("Failed to parse primitive")]
-    inp.next
+        result = @[inp.errorMsgX(&"Failed to parse primitive \"{str}\"")]
 
 proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string]
 
@@ -109,11 +114,14 @@ proc deserField[T: object](inp: var XmlParser, xmlName: string, outp: var T): se
     deserFieldInner(outp)
 
 proc deserAttrs[T: object](inp: var XmlParser, outp: var T): seq[string] =
-    while inp.kind == xmlAttribute:
+    if inp.kind != xmlAttribute:
+        return
+    while true:
         result &= inp.deserField(inp.attrKey, outp)
         inp.next
-    if inp.kind == xmlElementClose:
-        inp.next
+        if inp.kind != xmlAttribute: break
+    inp.expectKind xmlElementClose
+    inp.next
 
 proc deserText[T: object](inp: var XmlParser, outp: var T): seq[string] =
     for key, val in fieldPairs outp:

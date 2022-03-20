@@ -121,3 +121,20 @@ suite "Deserialization":
 #        <>x(newText"1"),
 #        <>b(newText"Yo")))
 #    check xml.deserString[:TestObj]("root") == TestObj(x: 1, y: true, b: "Yo")
+
+suite "Char data":
+    test "Standard":
+        type TestObj = object
+            x: string
+        let xml = "<root><x>He&apos;llo</x></root>"
+        check xml.deserString[:TestObj]("root").get == TestObj(x: "He'llo")
+
+    test "attribute":
+        type
+            ChildObj = object
+                a {.xmlAttr.}: string
+            TestObj = object
+                x: ChildObj
+        # xmlElementOpen, xmlAttribute, xmlElementClose, xmlElementEnd
+        let xml = """<x a="He&lt;llo" />"""
+        check xml.deserString[:TestObj].get == TestObj(x: ChildObj(a: "He<llo"))
