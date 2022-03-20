@@ -134,7 +134,9 @@ proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[st
         result &= inp.deserText(outp)
         return
     while inp.kind notin {xmlElementEnd, xmlEof}:
+        inp.expectKind {xmlElementStart, xmlElementOpen}
         let elemName = inp.elemName
         inp.next
         result &= inp.deserField(elemName, outp)
+        inp.expectKind xmlElementEnd
         inp.next
