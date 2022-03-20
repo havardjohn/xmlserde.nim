@@ -47,13 +47,18 @@ type
     Primitive* = SomeInteger | SomeFloat | string | bool | enum | DateTime
         ## Supported primitive types for all marshalling.
 
+    XmlSyntaxError* = object of ValueError
+
 func errorMsgX*(inp: XmlParser, msg: string): string =
     let extraMsg = if inp.kind == xmlError: inp.errorMsg else: ""
     inp.errorMsg(msg & extraMsg)
 
-func expectKind*(inp: XmlParser, kind: set[XmlEventKind]) =
+func doExpectKind*(inp: XmlParser, kind: set[XmlEventKind]) =
     if inp.kind notin kind:
-        raise newException(Exception,
+        raise newException(XmlSyntaxError,
             inp.errorMsgX(&"Expected XML kind to be of {$kind}, but got {$inp.kind}"))
-func expectKind*(inp: XmlParser, kind: XmlEventKind) = inp.expectKind {kind}
+func doExpectKind*(inp: XmlParser, kind: XmlEventKind) = inp.doExpectKind {kind}
 
+template expectKind*(inp: XmlParser, kind) =
+    when not defined release:
+        inp.doExpectKind(kind)
