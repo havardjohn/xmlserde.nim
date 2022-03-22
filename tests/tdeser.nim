@@ -170,3 +170,13 @@ suite "Char data":
         # xmlElementOpen, xmlAttribute, xmlElementClose, xmlElementEnd
         let xml = """<x a="He&lt;llo" />"""
         check xml.deserString[:TestObj].get == TestObj(x: ChildObj(a: "He<llo"))
+
+    # The tested XML string is parsed into the following tokens:
+    # xmlCharData("He"), xmlCharData(">"), xmlWhitespace("  "),
+    # xmlCharData("llo"). This peculiar occurrence of `xmlWhitespace` inside
+    # what should be just `xmlCharData` tokens must be parsed correctly.
+    test "Whitespace after escape sequence parses correctly":
+        type TestObj = object
+            x: string
+        let xml = """<x>He&gt;  llo</x>"""
+        check xml.deserString[:TestObj].get == TestObj(x: "He>  llo")

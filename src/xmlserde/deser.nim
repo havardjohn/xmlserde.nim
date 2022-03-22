@@ -88,7 +88,7 @@ proc deser*[T: Primitive](inp: var XmlParser, outp: var T): seq[string] =
             while true:
                 str &= inp.charData
                 inp.next
-                if inp.kind != xmlCharData: break
+                if inp.kind notin {xmlCharData, xmlWhitespace}: break
             str
         of xmlAttribute: inp.attrValue
         else: inp.expectKind {xmlCharData, xmlAttribute}; ""
