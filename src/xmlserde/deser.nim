@@ -4,20 +4,23 @@ import std/[strutils, macros, strtabs, options, strformat, times, parseutils]
 import common
 
 # Easier debugging for tests
-when defined xmlSerdeParseXmlDebug:
+when defined xmlDeserDebug:
     import std/parsexml except next
-    func valOf*(inp: var XmlParser): string =
-        case inp.kind
-        of xmlCharData: inp.charData
-        of xmlAttribute: &"{inp.attrKey} = \"{inp.attrValue}\""
-        else: ""
-    func kindOf*(inp: var XmlParser): XmlEventKind =
-        inp.kind
     template next(inp: var XmlParser) =
-        bind valOf
-        bind kindOf
         parsexml.next(inp)
-        echo &"next at {instantiationInfo(-2, true).line}: {$inp.kindOf} with val \"{valOf(inp)}\""
+        let val =
+            case inp.kind
+            of xmlCharData, xmlWhitespace: inp.charData
+            of xmlAttribute: &"{inp.attrKey} = \"{inp.attrValue}\""
+            else: ""
+        let info = instantiationInfo(-1, true)
+        echo "$#($#, $#) Hint: Next $# with val \"$#\" for `XmlParser.next`" % [
+            $info.filename,
+            $info.line,
+            $info.column,
+            $inp.kind,
+            val
+        ]
 else:
     import std/parsexml
 
