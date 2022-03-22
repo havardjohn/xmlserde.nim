@@ -1,6 +1,16 @@
 ## Deserialization implementation.
 
-import std/[strutils, macros, strtabs, options, strformat, times, parseutils]
+import std/[
+    macros,
+    options,
+    parseutils,
+    sequtils,
+    strformat,
+    strtabs,
+    strutils,
+    times,
+    typetraits,
+]
 import common
 
 # Easier debugging for tests
@@ -119,7 +129,7 @@ proc skipNode(inp: var XmlParser) =
                 return
         else: discard
 
-proc deserField[T: object](inp: var XmlParser, xmlName: string, outp: var T,
+proc deserField[T](inp: var XmlParser, xmlName: string, outp: var T,
                            isAttr: static bool): seq[string] =
     template deserFieldInner[T](outp: var T) {.dirty.} =
         for key, val in fieldPairs outp:
@@ -137,30 +147,42 @@ proc deserField[T: object](inp: var XmlParser, xmlName: string, outp: var T,
         inp.expectKind {xmlCharData, xmlAttribute, xmlElementStart, xmlElementOpen}
         inp.skipNode
 
-proc deserAttrs[T: object](inp: var XmlParser, outp: var T): seq[string] =
+proc deserAttrs[T](inp: var XmlParser, outp: var T,
+                   doneFields: var seq[string]): seq[string] =
     if inp.kind != xmlAttribute:
         return
     while true:
+        doneFields &= inp.attrKey
         result &= inp.deserField(inp.attrKey, outp, true)
         inp.next
         if inp.kind != xmlAttribute: break
     inp.expectKind xmlElementClose
     inp.next
 
-proc deserText[T: object](inp: var XmlParser, outp: var T): seq[string] =
+proc deserText[T](inp: var XmlParser, outp: var T,
+                  doneFields: var seq[string]): seq[string] =
     for key, val in fieldPairs outp:
         when hasCustomPragma(val, xmlText):
+            doneFields &= key
             return inp.deser(val)
 
 proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string] =
-    result = inp.deserAttrs(outp)
+    var doneFields: seq[string]
+    result = inp.deserAttrs(outp, doneFields)
     if inp.kind == xmlCharData:
-        result &= inp.deserText(outp)
+        result &= inp.deserText(outp, doneFields)
         return
     while inp.kind notin {xmlElementEnd, xmlEof}:
         inp.expectKind {xmlElementStart, xmlElementOpen}
         let elemName = inp.elemName
+        doneFields &= elemName
         inp.next
         result &= inp.deserField(elemName, outp, false)
         inp.expectKind xmlElementEnd
         inp.next
+    bind stripGenericParams
+    for key, val in fieldPairs outp:
+        when not (stripGenericParams(val.type) is seq or
+                  stripGenericParams(val.type) is Option):
+            if not doneFields.anyIt(it =?= xmlNameOf(val, key)):
+                result &= inp.errorMsgX("Field `$#.$#` was not deserialized" % [$T, key])

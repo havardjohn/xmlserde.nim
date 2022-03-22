@@ -128,6 +128,20 @@ suite "Deserialization":
             <>x(newText"600000")))
         check xml.deserString[:TestObj]("root").isErr
 
+    test "Missing fields generate an error":
+        type TestObj = object
+            x, y: int16
+        let xml = $(<>root(
+            <>x(newText"321")))
+        check xml.deserString[:TestObj]("root").isErr
+
+    test "Missing lists don't generate an error":
+        type TestObj = object
+            x, y: seq[int16]
+        let xml = $(<>root(
+            <>x(newText"321")))
+        check xml.deserString[:TestObj]("root").get == TestObj(x: @[321.int16], y: @[])
+
     # The `<z>(<y>...)` tests that `TestObj.y` is not overwritten with `z.y`'s
     # value; tests that nested ignoring is properly handled.
     test "XML not in schema is ignored":
