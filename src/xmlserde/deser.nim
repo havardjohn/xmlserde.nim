@@ -89,18 +89,20 @@ func deser(inp: string, outp: var bool): bool = inp.parseBool(outp)
 func deser[T: enum](inp: string, outp: var T): bool = parseEnum[T](inp, outp)
 proc deser(inp: string, outp: var DateTime): bool = inp.parseDateTime(outp)
 
+proc getNextString(inp: var XmlParser): string =
+    case inp.kind
+    of xmlCharData:
+        var str: string
+        while true:
+            str &= inp.charData
+            inp.next
+            if inp.kind notin {xmlCharData, xmlWhitespace}: break
+        str
+    of xmlAttribute: inp.attrValue
+    else: inp.expectKind {xmlCharData, xmlAttribute}; ""
+
 proc deser*[T: Primitive](inp: var XmlParser, outp: var T): seq[string] =
-    let str =
-        case inp.kind
-        of xmlCharData:
-            var str: string
-            while true:
-                str &= inp.charData
-                inp.next
-                if inp.kind notin {xmlCharData, xmlWhitespace}: break
-            str
-        of xmlAttribute: inp.attrValue
-        else: inp.expectKind {xmlCharData, xmlAttribute}; ""
+    let str = inp.getNextString
     if not str.deser(outp):
         result = @[inp.errorMsgX(&"Failed to parse primitive \"{str}\"")]
 
