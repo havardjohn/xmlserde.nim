@@ -19,8 +19,8 @@ when defined xmlDeserDebug:
         parsexml.next(inp)
         let val =
             case inp.kind
-            of xmlCharData, xmlWhitespace: inp.charData
-            of xmlAttribute: &"{inp.attrKey} = \"{inp.attrValue}\""
+            of xmlCharData, xmlWhitespace: parsexml.charData(inp)
+            of xmlAttribute: "$# = \"$#\"" % [parsexml.attrKey(inp), parsexml.attrValue(inp)]
             else: ""
         let info = instantiationInfo(-1, true)
         echo "$#($#, $#) Hint: Next $# with val \"$#\" for `XmlParser.next`" % [
