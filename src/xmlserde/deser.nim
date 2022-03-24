@@ -4,7 +4,6 @@ import std/[
     macros,
     options,
     parseutils,
-    sequtils,
     strformat,
     strtabs,
     strutils,
