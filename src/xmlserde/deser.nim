@@ -144,10 +144,7 @@ proc deserField[T](inp: var XmlParser, xmlName: string, outp: var T,
                     return inp.deser(val)
     deserFieldInner(outp)
     # Handle field not existing in object fields:
-    when isAttr:
-        inp.expectKind xmlAttribute
-        inp.next # Skips ignored xmlAttribute
-    else:
+    when not isAttr:
         inp.expectKind {xmlCharData, xmlAttribute, xmlElementStart, xmlElementOpen}
         inp.skipNode
 
