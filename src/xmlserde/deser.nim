@@ -1,6 +1,8 @@
 ## Deserialization implementation.
 
 import std/[
+    enumerate,
+    intsets,
     macros,
     options,
     parseutils,
@@ -131,13 +133,14 @@ proc skipNode(inp: var XmlParser) =
         else: discard
 
 proc deserField[T](inp: var XmlParser, xmlName: string, outp: var T,
-                           isAttr: static bool): seq[string] =
-    template deserFieldInner[T](outp: var T) {.dirty.} =
-        for key, val in fieldPairs outp:
+                   doneFields: var auto, isAttr: static bool): seq[string] =
+    template deserFieldInner[T](outp: var T) =
+        for i, key, val in enumerate fieldPairs outp:
             when hasCustomPragma(val, xmlFlatten):
                 deserFieldInner(val)
             else:
                 if xmlName =?= xmlNameOf(val, key):
+                    doneFields.incl i
                     return inp.deser(val)
     deserFieldInner(outp)
     # Handle field not existing in object fields:
@@ -149,26 +152,31 @@ proc deserField[T](inp: var XmlParser, xmlName: string, outp: var T,
         inp.skipNode
 
 proc deserAttrs[T](inp: var XmlParser, outp: var T,
-                   doneFields: var seq[string]): seq[string] =
+                   doneFields: var auto): seq[string] =
     if inp.kind != xmlAttribute:
         return
     while true:
-        doneFields &= inp.attrKey
-        result &= inp.deserField(inp.attrKey, outp, true)
+        result &= inp.deserField(inp.attrKey, outp, doneFields, true)
         inp.next
         if inp.kind != xmlAttribute: break
     inp.expectKind xmlElementClose
     inp.next
 
 proc deserText[T](inp: var XmlParser, outp: var T,
-                  doneFields: var seq[string]): seq[string] =
-    for key, val in fieldPairs outp:
+                  doneFields: var auto): seq[string] =
+    for i, key, val in enumerate fieldPairs outp:
         when hasCustomPragma(val, xmlText):
-            doneFields &= key
+            doneFields.incl i
             return inp.deser(val)
 
+# This makes it so that the an error string is stored per object and field,
+# as opposed to 1 string that is formatted at runtime. This saves space in
+# the binary file.
+template doneFieldErrMsg {.dirty.} =
+    "Field `" & $T & "." & key & "` was not deserialized"
+
 proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string] =
-    var doneFields: seq[string]
+    var doneFields: IntSet
     result = inp.deserAttrs(outp, doneFields)
     if inp.kind == xmlCharData:
         result &= inp.deserText(outp, doneFields)
@@ -176,14 +184,12 @@ proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[st
     while inp.kind notin {xmlElementEnd, xmlEof}:
         inp.expectKind {xmlElementStart, xmlElementOpen}
         let elemName = inp.elemName
-        doneFields &= elemName
         inp.next
-        result &= inp.deserField(elemName, outp, false)
+        result &= inp.deserField(elemName, outp, doneFields, false)
         inp.expectKind xmlElementEnd
         inp.next
     bind stripGenericParams
-    for key, val in fieldPairs outp:
-        when not (stripGenericParams(val.type) is seq or
-                  stripGenericParams(val.type) is Option):
-            if not doneFields.anyIt(it =?= xmlNameOf(val, key)):
-                result &= inp.errorMsgX("Field `$#.$#` was not deserialized" % [$T, key])
+    for i, key, val in enumerate fieldPairs outp:
+        when not (stripGenericParams(val.type) is (seq or Option)):
+            if i notin doneFields:
+                result &= inp.errorMsgX(doneFieldErrMsg)
