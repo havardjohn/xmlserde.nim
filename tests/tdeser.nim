@@ -166,6 +166,30 @@ suite "Deserialization":
 # XXX: `seq[Option[T]]` may not be possible. It is however not a type that ever
 # appears from structures from XSD.
 
+suite "Unions":
+    setup:
+        type TestObj = object
+            x: int
+            case y: uint8
+            of 0: a: string
+            of 1: b: int
+            else: discard
+
+    # NOTE: It is required that the XML field for the discriminator comes
+    # before the actual union field.
+    test "Deserialize the discriminator":
+        let xml = $(<>root(
+            <>x(newText"3"),
+            <>y(newText"1"),
+            <>b(newText"2")))
+        check xml.deserString[:TestObj]("root").get.repr == TestObj(x: 3, y: 1, b: 2).repr
+
+    test "Fail when union field is not deserialized":
+        let xml2 = $(<>root(
+            <>x(newText"3"),
+            <>y(newText"1")))
+        check xml2.deserString[:TestObj]("root").isErr
+
 # TODO
 #test "Unions":
 #    type TestObj = object

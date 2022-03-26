@@ -156,7 +156,8 @@ proc deserField[T](inp: var XmlParser, xmlName: string, outp: var T,
     xmlFieldPairs(outp):
         if xmlName =?= xmlNameOf(val, key):
             doneFields.add key
-            return inp.deser(val)
+            {.cast(uncheckedAssign).}: # So that discriminator's are assigned
+                return inp.deser(val)
     # Handle field not existing in object fields:
     when not isAttr:
         inp.expectKind {xmlCharData, xmlAttribute, xmlElementStart, xmlElementOpen}
