@@ -1,7 +1,6 @@
 ## Deserialization implementation.
 
 import std/[
-    enumerate,
     intsets,
     macros,
     options,
@@ -132,17 +131,32 @@ proc skipNode(inp: var XmlParser) =
                 return
         else: discard
 
+template xmlFieldPairs[T](firstObj: var T, code) {.dirty.} =
+    ## Iterate over all "XML" field pairs in `T`. This is an abstraction over
+    ## `fieldPairs` that takes into account the `xmlFlatten` pragma, which
+    ## flattens an object into an encapsulating object.
+    ##
+    ## The `dirty` pragma here is used to inject the following variables into
+    ## the scope of `code`:
+    ## * `obj` - The `object` currently being deserialized (whether the "root"
+    ##   or a flattened object)
+    ## * `key` - Current field name in the `fieldPairs` iterator
+    ## * `val` - Current field value in the `fieldPairs` iterator
+    template inner[U](obj: var U) =
+        bind hasCustomPragma
+        for key, val in fieldPairs obj:
+            when hasCustomPragma(val, xmlFlatten):
+                inner(val)
+            else:
+                code
+    inner(firstObj)
+
 proc deserField[T](inp: var XmlParser, xmlName: string, outp: var T,
                    doneFields: var auto, isAttr: static bool): seq[string] =
-    template deserFieldInner[T](outp: var T) =
-        for i, key, val in enumerate fieldPairs outp:
-            when hasCustomPragma(val, xmlFlatten):
-                deserFieldInner(val)
-            else:
-                if xmlName =?= xmlNameOf(val, key):
-                    doneFields.incl i
-                    return inp.deser(val)
-    deserFieldInner(outp)
+    xmlFieldPairs(outp):
+        if xmlName =?= xmlNameOf(val, key):
+            doneFields.add key
+            return inp.deser(val)
     # Handle field not existing in object fields:
     when not isAttr:
         inp.expectKind {xmlCharData, xmlAttribute, xmlElementStart, xmlElementOpen}
@@ -161,19 +175,13 @@ proc deserAttrs[T](inp: var XmlParser, outp: var T,
 
 proc deserText[T](inp: var XmlParser, outp: var T,
                   doneFields: var auto): seq[string] =
-    for i, key, val in enumerate fieldPairs outp:
+    for key, val in fieldPairs outp:
         when hasCustomPragma(val, xmlText):
-            doneFields.incl i
+            doneFields.add key
             return inp.deser(val)
 
-# This makes it so that the an error string is stored per object and field,
-# as opposed to 1 string that is formatted at runtime. This saves space in
-# the binary file.
-template doneFieldErrMsg {.dirty.} =
-    "Field `" & $T & "." & key & "` was not deserialized"
-
 proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string] =
-    var doneFields: IntSet
+    var doneFields: seq[string]
     result = inp.deserAttrs(outp, doneFields)
     if inp.kind == xmlCharData:
         result &= inp.deserText(outp, doneFields)
@@ -186,7 +194,7 @@ proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[st
         inp.expectKind xmlElementEnd
         inp.next
     bind stripGenericParams
-    for i, key, val in enumerate fieldPairs outp:
+    xmlFieldPairs(outp):
         when not (stripGenericParams(val.type) is (seq or Option)):
-            if i notin doneFields:
-                result &= inp.errorMsgX(doneFieldErrMsg)
+            if key notin doneFields:
+                result &= inp.errorMsgX("Field `" & $obj.type & "." & key & "` was not deserialized")

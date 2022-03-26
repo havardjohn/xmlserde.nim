@@ -1,4 +1,4 @@
-import std/[xmltree, parsexml, unittest, options, streams, times]
+import std/[xmltree, parsexml, unittest, options, streams, times, strutils]
 import xmlserde
 import results
 
@@ -133,7 +133,17 @@ suite "Deserialization":
             x, y: int16
         let xml = $(<>root(
             <>x(newText"321")))
-        check xml.deserString[:TestObj]("root").isErr
+        check xml.deserString[:TestObj]("root").error.contains"TestObj.y"
+
+    test "Missing fields in flattened object generate an error":
+        type
+            InnerObj = object
+                x, y: int16
+            TestObj = object
+                z {.xmlFlatten.}: InnerObj
+        let xml = $(<>root(
+            <>y(newText"421")))
+        check xml.deserString[:TestObj]("root").error.contains"InnerObj.x"
 
     test "Missing lists don't generate an error":
         type TestObj = object
