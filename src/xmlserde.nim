@@ -29,7 +29,9 @@ import std/[streams, parsexml, strutils]
 import results
 import xmlserde/[ser, deser, common]
 
-export ser, deser, xmlName, xmlFlatten, xmlAttr, xmlText
+export
+    ser, deser, xmlName, xmlFlatten, xmlAttr, xmlText, xmlSkipDeser, xmlSkip,
+    xmlSkipSer
 
 type
     DeserializeResult[T] = Result[T, string]

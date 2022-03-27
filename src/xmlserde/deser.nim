@@ -145,7 +145,9 @@ template xmlFieldPairs[T](firstObj: var T, code) {.dirty.} =
     template inner[U](obj: var U) =
         bind hasCustomPragma
         for key, val in fieldPairs obj:
-            when hasCustomPragma(val, xmlFlatten):
+            when hasCustomPragma(val, xmlSkipDeser) or hasCustomPragma(val, xmlSkip):
+                discard
+            elif hasCustomPragma(val, xmlFlatten):
                 inner(val)
             else:
                 code

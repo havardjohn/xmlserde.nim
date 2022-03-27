@@ -27,7 +27,9 @@ proc ser*[T: object | tuple and not DateTime](inp: T): XmlNode =
     bind stripGenericParams
     for key, val in inp.fieldPairs:
         const xmlName = xmlNameOf(val, key)
-        when hasCustomPragma(val, xmlFlatten):
+        when hasCustomPragma(val, xmlSkipSer) or hasCustomPragma(val, xmlSkip):
+            discard
+        elif hasCustomPragma(val, xmlFlatten):
             subs &= val.ser.subnodes
         elif hasCustomPragma(val, xmlAttr):
             when stripGenericParams(val.type) is Option:

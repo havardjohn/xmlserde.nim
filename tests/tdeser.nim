@@ -163,6 +163,22 @@ suite "Deserialization":
             <>z(<>y(newText"123"))))
         check xml.deserString[:TestObj]("root").get == TestObj(y: "Hello")
 
+    test "Skipping field `xmlSkipDeser`":
+        type TestObj = object
+            x {.xmlSkipDeser.}: int
+            y: string
+        let xml = $(<>root(
+            <>y(newText"Hi")))
+        check xml.deserString[:TestObj]("root").get == TestObj(x: 0, y: "Hi")
+
+    test "Skipping field `xmlSkip`":
+        type TestObj = object
+            x {.xmlSkip.}: int
+            y: string
+        let xml = $(<>root(
+            <>y(newText"Hi")))
+        check xml.deserString[:TestObj]("root").get == TestObj(x: 0, y: "Hi")
+
 # XXX: `seq[Option[T]]` may not be possible. It is however not a type that ever
 # appears from structures from XSD.
 

@@ -32,6 +32,9 @@ template xmlText* {.pragma.}
     ##
     ## The use case is when the contained object is meant to be a simple
     ## primitive type, except it has attributes.
+template xmlSkipDeser* {.pragma.}
+template xmlSkipSer* {.pragma.}
+template xmlSkip* {.pragma.}
 
 template xmlNameOf*(field: typed, def: string): string =
     ## Convenience for getting `xmlName` pragma with a default. `field` is a

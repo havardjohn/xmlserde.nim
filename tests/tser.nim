@@ -106,6 +106,14 @@ suite "serialization":
         check obj.ser == "".newXmlTree([
             <>x(newText"2020-01-21T11:21:00Z")])
 
+    test "Skipping fields":
+        type TestObj = object
+            x {.xmlSkipSer.}, y: int
+            z {.xmlSkip.}: string
+        let obj = TestObj(x: 3, y: 4, z: "Hello")
+        check obj.ser == "".newXmlTree([
+            <>y(newText"4")])
+
     # TODO
     #test "Unions":
     #    type TestObj = object
