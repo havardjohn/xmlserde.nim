@@ -11,7 +11,7 @@ import std/[
     times,
     typetraits,
 ]
-import common
+import common, variant_objects
 
 # Easier debugging for tests
 when defined xmlDeserDebug:
@@ -33,6 +33,13 @@ when defined xmlDeserDebug:
         ]
 else:
     import std/parsexml
+
+func warnMixedVariantNormalObj(T: typedesc) =
+    static:
+        macros.warning "Type `" & $T & "` contains both case-of fields and normal " &
+            "fields. This can cause undesirable behavior such as fields " &
+            "being zeroed after deserialiation. Consider splitting case-of " &
+            "fields into their own \"union\" objects, akin to Rust enums."
 
 func `=?=`(x, y: string): bool = cmpIgnoreCase(x, y) == 0
 
@@ -142,8 +149,13 @@ template xmlFieldPairs[T](firstObj: var T, code) {.dirty.} =
     ##   or a flattened object)
     ## * `key` - Current field name in the `fieldPairs` iterator
     ## * `val` - Current field value in the `fieldPairs` iterator
+    # NOTE: This captures `xmlName` if present in scope only. This applies only
+    # to `deserField` proc.
     template inner[U](obj: var U) =
         bind hasCustomPragma
+        bind deserUnion
+        when compiles(xmlName & ""):
+            deserUnion(obj, xmlName)
         for key, val in fieldPairs obj:
             when hasCustomPragma(val, xmlSkipDeser) or hasCustomPragma(val, xmlSkip):
                 discard
@@ -184,6 +196,8 @@ proc deserText[T](inp: var XmlParser, outp: var T,
             return inp.deser(val)
 
 proc deser*[T: object and not DateTime](inp: var XmlParser, outp: var T): seq[string] =
+    when isVariantAndNormal(outp):
+        warnMixedVariantNormalObj(T)
     var doneFields: seq[string]
     result = inp.deserAttrs(outp, doneFields)
     if inp.kind == xmlCharData:

@@ -206,17 +206,107 @@ suite "Unions":
             <>y(newText"1")))
         check xml2.deserString[:TestObj]("root").isErr
 
-# TODO
-#test "Unions":
-#    type TestObj = object
-#        x: int
-#        case y: bool
-#        of false: a: int
-#        of true: b: string
-#    let xml = $(<>root(
-#        <>x(newText"1"),
-#        <>b(newText"Yo")))
-#    check xml.deserString[:TestObj]("root") == TestObj(x: 1, y: true, b: "Yo")
+suite "Complex unions":
+    test "Standard":
+        type TestObj = object
+            case x {.xmlSkipDeser.}: uint8
+            of 0: y: int16
+            of 1: z: string
+            else: discard
+        let xml = $(<>root(
+            <>z(newText"Hello")))
+        check $xml.deserString[:TestObj]("root").get == $TestObj(x: 1, z: "Hello")
+
+    test "Successful use of `xmlName`":
+        type TestObj = object
+            case x {.xmlSkipDeser.}: uint8
+            of 0: y {.xmlName: "Hello".}: int8
+            of 1: z: string
+            of 2: a: uint8
+            else: discard
+        let xml = $(<>root(
+            <>Hello(newText"3")))
+        check $xml.deserString[:TestObj]("root").get == $TestObj(x: 0, y: 3)
+
+    test "Multiple fields in case":
+        type TestObj = object
+            case x {.xmlSkipDeser.}: uint8
+            of 0: y: int8
+            of 1:
+                z: string
+                a: seq[string]
+                b {.xmlName: "betta".}: int8
+            of 2: c: int8
+            else: discard
+        let xml = $(<>root(
+            <>z(newText"AString"),
+            <>betta(newText"8")))
+        check $xml.deserString[:TestObj]("root").get == $TestObj(x: 1, z: "AString", a: @[], b: 8)
+
+    test "XML fields matching different cases match last":
+        type TestObj = object
+            case x {.xmlSkipDeser.}: uint8
+            of 0: y: int8
+            of 1: z: int
+            else: discard
+        let xml = $(<>root(
+            <>y(newText"3"),
+            <>z(newText"5")))
+        check $xml.deserString[:TestObj]("root").get == $TestObj(x: 1, z: 5)
+
+    test "Flattened unions work":
+        type
+            InnerObj = object
+                case x {.xmlSkip.}: uint8
+                of 0: y: int
+                of 1: z: int
+                else: discard
+            TestObj = object
+                a: int
+                b {.xmlFlatten.}: InnerObj
+                c: string
+        let xml = $(<>root(
+            <>a(newText"3"),
+            <>z(newText"10"),
+            <>c(newText"Hey")))
+        check $xml.deserString[:TestObj]("root").get == $TestObj(a: 3, b: InnerObj(x: 1, z: 10), c: "Hey")
+
+    # In this test `c` is deserialized before the flattened union sets its
+    # correct discriminant value. As such the number of fields in the whole
+    # object changes mid-serialization (from 3 to 4).
+    # This test prevents us from using `IntSet` to track the fields that are
+    # deserialized as opposed to `seq[string]` (list of the deserialized keys).
+    test "Holes":
+        type
+            InnerObj = object
+                case x {.xmlSkip.}: uint8
+                of 0: y: int
+                of 1:
+                    z1: int
+                    z2: string
+                else: discard
+            TestObj = object
+                a: string
+                b {.xmlFlatten.}: InnerObj
+                c: int
+        let xml = $(<>root(
+            <>a(newText"Hey1"),
+            <>c(newText"3"),
+            <>z1(newText"4"),
+            <>z2(newText"5")))
+        check $xml.deserString[:TestObj]("root").get == $TestObj(a: "Hey1", b: InnerObj(x: 1, z1: 4, z2: "5"), c: 3)
+
+    test "Warning for mixed variant object compiles":
+        type TestObj = object
+            x: int
+            case y {.xmlSkip.}: byte
+            of 0: z1: int
+            of 1: z2: int
+            else: discard
+        let xml = $(<>root(
+            <>x(newText"3"),
+            <>z2(newText"4")))
+        check compiles(xml.deserString[:TestObj]("root"))
 
 suite "Char data":
     test "Standard":

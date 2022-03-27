@@ -114,14 +114,13 @@ suite "serialization":
         check obj.ser == "".newXmlTree([
             <>y(newText"4")])
 
-    # TODO
-    #test "Unions":
-    #    type TestObj = object
-    #        x: int
-    #        case y: bool
-    #        of false: a: int
-    #        of true: b: string
-    #    let obj = TestObj(x: 1, y: true, b: "Yo")
-    #    check obj.ser == "".newXmlTree([
-    #        <>x(newText"1"),
-    #        <>b(newText"Yo")])
+    test "Unions":
+        type TestObj = object
+            x: int
+            case y {.xmlSkip.}: bool
+            of false: a: int
+            of true: b: string
+        let obj = TestObj(x: 1, y: true, b: "Yo")
+        check obj.ser == "".newXmlTree([
+            <>x(newText"1"),
+            <>b(newText"Yo")])
