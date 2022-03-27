@@ -26,7 +26,8 @@ proc ser*[T: object | tuple and not DateTime](inp: T): XmlNode =
         subs = newSeq[XmlNode]()
     bind stripGenericParams
     for key, val in inp.fieldPairs:
-        const xmlName = xmlNameOf(val, key)
+        {.hint[XDeclaredButNotUsed]: off.}:
+            const xmlName = xmlNameOf(val, key)
         when hasCustomPragma(val, xmlSkipSer) or hasCustomPragma(val, xmlSkip):
             discard
         elif hasCustomPragma(val, xmlFlatten):
