@@ -1,3 +1,8 @@
+**NOTE**: This repo has been archived and moved to
+[sourcehut](https://sr.ht/~mjaa/xmlserde-nim/).
+
+---
+
 A very simple marshalling library between XML and Nim structures. This library
 is primarily intended to fill the absence of such a library. For anyone
 familiar in marshalling, this implementation should work predictably.
